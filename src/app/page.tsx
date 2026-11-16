@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { getAllStations, getDatasetMeta, UK_NATIONAL_AVERAGES } from '@/lib/data';
+import { getAllStations, getDatasetMeta, getNationalAverages } from '@/lib/data';
 import StationList from '@/components/StationList';
 import FaqSection from '@/components/FaqSection';
 import { Fuel, ShieldCheck, MapPin, TrendingDown, ArrowRight } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Fuel, ShieldCheck, MapPin, TrendingDown, ArrowRight } from 'lucide-reac
 export default function HomePage() {
   const allStations = getAllStations();
   const meta = getDatasetMeta();
+  const nationalAverages = getNationalAverages();
 
   return (
     <div className="space-y-8">
@@ -15,7 +16,7 @@ export default function HomePage() {
       <section className="text-center max-w-3xl mx-auto space-y-3 pt-2 sm:pt-4">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF6B00]/15 text-[#FF6B00] text-xs font-bold uppercase tracking-wider">
           <Fuel className="w-3.5 h-3.5" />
-          <span>UK CMA Open Data Tracker • {allStations.length} Active Stations</span>
+          <span>Fuel Finder • OGL v3.0 • {allStations.length} Active Stations</span>
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white dark:text-white light:text-[#111111] leading-tight">
@@ -23,7 +24,7 @@ export default function HomePage() {
         </h1>
 
         <p className="text-sm sm:text-base text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280] leading-relaxed">
-          Compare real-time petrol & diesel prices from Tesco, Asda, Sainsbury’s, Morrisons, Shell, BP, and independent retailers. Calculate 50-litre tank fill costs and avoid overpriced pumps.
+          Compare real-time petrol & diesel prices from Tesco, Asda, Sainsbury’s, Morrisons, Shell, BP, and independent retailers. Sourced under the Open Government Licence v3.0 via the official UK Fuel Finder service.
         </p>
 
         {/* Quick City Navigation Pills */}
@@ -49,38 +50,38 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* UK National Average Benchmark Bar */}
+      {/* UK National Average Benchmark Bar (Computed dynamically from official Fuel Finder data) */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-[#161616] dark:bg-[#161616] light:bg-[#FFFFFF] border border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB]">
         <div className="text-center p-2">
           <span className="text-[10px] font-semibold text-[#A3A3A3] uppercase tracking-wider block">
-            UK Avg Unleaded (E10)
+            Computed Avg Unleaded (E10)
           </span>
           <span className="text-xl sm:text-2xl font-extrabold text-[#F5F5F5] dark:text-[#F5F5F5] light:text-[#111111]">
-            {UK_NATIONAL_AVERAGES.E10}p
+            {nationalAverages.E10 ? `${nationalAverages.E10}p` : 'N/A'}
           </span>
         </div>
         <div className="text-center p-2">
           <span className="text-[10px] font-semibold text-[#A3A3A3] uppercase tracking-wider block">
-            UK Avg Super (E5)
+            Computed Avg Super (E5)
           </span>
           <span className="text-xl sm:text-2xl font-extrabold text-[#F5F5F5] dark:text-[#F5F5F5] light:text-[#111111]">
-            {UK_NATIONAL_AVERAGES.E5}p
+            {nationalAverages.E5 ? `${nationalAverages.E5}p` : 'N/A'}
           </span>
         </div>
         <div className="text-center p-2">
           <span className="text-[10px] font-semibold text-[#A3A3A3] uppercase tracking-wider block">
-            UK Avg Diesel (B7)
+            Computed Avg Diesel (B7)
           </span>
           <span className="text-xl sm:text-2xl font-extrabold text-[#F5F5F5] dark:text-[#F5F5F5] light:text-[#111111]">
-            {UK_NATIONAL_AVERAGES.B7}p
+            {nationalAverages.B7 ? `${nationalAverages.B7}p` : 'N/A'}
           </span>
         </div>
         <div className="text-center p-2">
           <span className="text-[10px] font-semibold text-[#A3A3A3] uppercase tracking-wider block">
-            UK Avg Super Diesel (SDV)
+            Computed Avg Super Diesel (SDV)
           </span>
           <span className="text-xl sm:text-2xl font-extrabold text-[#F5F5F5] dark:text-[#F5F5F5] light:text-[#111111]">
-            {UK_NATIONAL_AVERAGES.SDV}p
+            {nationalAverages.SDV ? `${nationalAverages.SDV}p` : 'N/A'}
           </span>
         </div>
       </section>

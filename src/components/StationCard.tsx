@@ -39,6 +39,18 @@ export default function StationCard({
   const tankCost = currentPrice ? calculateTankCost(currentPrice, 50) : null;
   const savings = currentPrice ? calculateFillSavings(currentPrice, selectedFuel, 50) : 0;
 
+  // Format update timestamp for this price
+  const priceTimestamp = station.price_timestamps?.[selectedFuel] || station.updated_at;
+  const formattedUpdate = priceTimestamp
+    ? new Date(priceTimestamp).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/London',
+      })
+    : null;
+
   const brandStyle = BRAND_COLORS[station.brand] || {
     bg: 'bg-zinc-800/50 text-zinc-300 border-zinc-700',
     text: 'text-zinc-300',
@@ -95,6 +107,14 @@ export default function StationCard({
               ({station.postcode})
             </span>
           </div>
+
+          {formattedUpdate && (
+            <div className="flex items-center gap-1.5 text-[11px] text-[#888888] dark:text-[#888888] light:text-[#666666] pt-0.5">
+              <Clock className="w-3 h-3 text-[#FF6B00]" />
+              <span>Price updated: <strong className="text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#444444]">{formattedUpdate}</strong></span>
+              <span className="text-[10px] text-[#666666] dark:text-[#666666] light:text-[#888888]">• Fuel Finder (OGL v3.0)</span>
+            </div>
+          )}
         </div>
 
         {/* Right Side: Large Price Display & Tank Cost */}

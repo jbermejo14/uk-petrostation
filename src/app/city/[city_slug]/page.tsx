@@ -56,9 +56,7 @@ export default function CityPage({ params }: CityPageProps) {
 
   const allStations = getAllStations();
   const cityStations = allStations.filter(
-    (s) =>
-      s.city.toLowerCase() === cityInfo.name.toLowerCase() ||
-      s.address.toLowerCase().includes(cityInfo.name.toLowerCase())
+    (s) => s.city.toLowerCase() === cityInfo.name.toLowerCase()
   );
 
   return (

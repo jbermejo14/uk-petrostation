@@ -18,12 +18,11 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-xs leading-relaxed">
-              FuelRadarUK aggregates real-time fuel prices from participating UK retailers under the
-              Competition and Markets Authority (CMA) Temporary Open Data Scheme. Helping UK drivers and businesses find cheaper petrol and diesel near them.
+              FuelRadarUK aggregates real-time fuel prices across the UK under the official Fuel Finder open data scheme (The Motor Fuel Price (Open Data) Regulations 2025). Contains public sector information licensed under the Open Government Licence v3.0.
             </p>
             <div className="flex items-center gap-1.5 text-[11px] text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280]">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Compliant with UK CMA Open Data Standards</span>
+              <span>Fuel Finder • Open Government Licence v3.0</span>
             </div>
           </div>
 
@@ -118,13 +117,13 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-          <p>© {new Date().getFullYear()} FuelRadarUK. All rights reserved. Fuel price data is sourced from voluntary and mandatory UK retailer Open Data feeds published under the CMA scheme.</p>
+          <p>© {new Date().getFullYear()} FuelRadarUK. All rights reserved. Data source: Fuel Finder, licensed under the Open Government Licence v3.0.</p>
           <div className="flex items-center gap-4">
             <span className="hover:text-white dark:hover:text-white light:hover:text-[#111111]">Privacy Policy</span>
             <span>•</span>
             <span className="hover:text-white dark:hover:text-white light:hover:text-[#111111]">Terms of Use</span>
             <span>•</span>
-            <span className="hover:text-white dark:hover:text-white light:hover:text-[#111111]">CMA Open Data API</span>
+            <span className="hover:text-white dark:hover:text-white light:hover:text-[#111111]">GOV.UK Fuel Finder</span>
           </div>
         </div>
       </div>

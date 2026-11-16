@@ -1,344 +1,363 @@
 /**
  * scripts/update-uk-fuel.mjs
- * FuelRadarUK - Official UK CMA Open Data Aggregator
+ * Official UK Fuel Finder Data Importer
  * 
- * Fetches, validates, and standardises real-time petrol & diesel price feeds
- * from major UK fuel retailers under the UK CMA Temporary Fuel Price Open Data Scheme.
+ * Implements The Motor Fuel Price (Open Data) Regulations 2025.
+ * Ingests live UK petrol & diesel prices and forecourt data via:
+ * 1. Official Fuel Finder REST API (OAuth 2.0 Client Credentials flow)
+ * 2. Official Fuel Finder CSV extract (via --csv flag or env variable)
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  normalizeStationRecord,
+  parseFuelFinderCsv,
+  computeNationalAverages,
+  checkDropThreshold,
+} from './lib/fuel-finder-core.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_PATH = path.resolve(__dirname, '../data/uk_stations.json');
+const TEMP_DATA_PATH = path.resolve(__dirname, '../data/uk_stations.json.tmp');
 
-// Official CMA Open Data Endpoints & Retailer URLs
-const FUEL_FEEDS = [
-  {
-    brand: 'Asda',
-    name: 'Asda Stores Ltd',
-    url: 'https://storelocator.asda.com/fuel_prices_data.json',
-  },
-  {
-    brand: "Sainsbury's",
-    name: "Sainsbury's Supermarkets Ltd",
-    url: 'https://api.sainsburys.co.uk/v1/exports/latest/fuel_prices_data.json',
-  },
-  {
-    brand: 'Morrisons',
-    name: 'Wm Morrison Supermarkets Limited',
-    url: 'https://service.morrisons.com/fuel-prices-v2.json',
-  },
-  {
-    brand: 'Tesco',
-    name: 'Tesco Stores Ltd',
-    url: 'https://www.tesco.com/fuel_prices/fuel_prices_data.json',
-  },
-  {
-    brand: 'Applegreen',
-    name: 'Applegreen UK',
-    url: 'https://applegreenstores.com/fuel-prices/data.json',
-  },
-  {
-    brand: 'Motor Fuel Group',
-    name: 'Motor Fuel Group (MFG)',
-    url: 'https://fuelprices.motorfuelgroup.com/fuel_prices_data.json',
-  },
-  {
-    brand: 'Rontec',
-    name: 'Rontec Roadside Retail',
-    url: 'https://www.rontec-servicestations.co.uk/fuel-prices/data.json',
-  },
-  {
-    brand: 'BP',
-    name: 'BP Oil UK',
-    url: 'https://www.bp.com/en_gb/united-kingdom/home/fuelprices/fuel_prices_data.json',
-  },
-  {
-    brand: 'Esso',
-    name: 'Esso Petroleum Company',
-    url: 'https://fuelprices.esso.co.uk/en/fuel_prices_data.json',
-  },
-  {
-    brand: 'Shell',
-    name: 'Shell UK',
-    url: 'https://www.shell.co.uk/fuel-prices-data.html',
-  },
-  {
-    brand: 'SGN Retail',
-    name: 'SGN Retail Ltd',
-    url: 'https://fuelprices.sgnretail.uk/fuel_prices_data.json',
-  },
-];
+const USER_AGENT = 'FuelRadarUK/1.0 (+https://fuelradar.co.uk)';
 
-// Helper to extract UK postcode district (e.g., "SW1A 1AA" -> "SW1A", "M1 4BT" -> "M1")
-function extractDistrict(postcode) {
-  if (!postcode) return '';
-  const clean = postcode.trim().toUpperCase().replace(/\s+/g, ' ');
-  const parts = clean.split(' ');
-  if (parts.length > 1) return parts[0];
-  // If no space, split using standard outward code pattern
-  const match = clean.match(/^([A-Z]{1,2}[0-9][0-9A-Z]?)/);
-  return match ? match[1] : clean.slice(0, 4);
+/**
+ * Loads .env file if present without external dependencies
+ */
+async function loadEnv() {
+  const envPath = path.resolve(__dirname, '../.env');
+  try {
+    const raw = await fs.readFile(envPath, 'utf-8');
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  } catch (e) {
+    // .env is optional
+  }
 }
 
-// Approximate city detection from postcode area
-function deriveCityFromPostcode(postcode, address) {
-  if (!postcode) return 'United Kingdom';
-  const clean = postcode.toUpperCase().trim();
-  const areaMatch = clean.match(/^([A-Z]{1,2})/);
-  const area = areaMatch ? areaMatch[1] : '';
+/**
+ * Fetch OAuth 2.0 Access Token from Fuel Finder
+ */
+async function getApiAccessToken(baseUrl, clientId, clientSecret) {
+  const tokenUrl = `${baseUrl}/oauth/generate_access_token`;
+  console.log(`[Auth] Requesting OAuth access token from ${tokenUrl}...`);
 
-  const AREA_MAP = {
-    // London
-    E: 'London',
-    EC: 'London',
-    N: 'London',
-    NW: 'London',
-    SE: 'London',
-    SW: 'London',
-    W: 'London',
-    WC: 'London',
-    CR: 'London',
-    BR: 'London',
-    HA: 'London',
-    EN: 'London',
-    IG: 'London',
-    RM: 'London',
-    DA: 'London',
-    UB: 'London',
-    TW: 'London',
-    KT: 'London',
-    SM: 'London',
-    // Major Cities
-    M: 'Manchester',
-    B: 'Birmingham',
-    CV: 'Coventry',
-    LS: 'Leeds',
-    G: 'Glasgow',
-    EH: 'Edinburgh',
-    BS: 'Bristol',
-    L: 'Liverpool',
-    CF: 'Cardiff',
-    NE: 'Newcastle',
-    S: 'Sheffield',
-    NG: 'Nottingham',
-    LE: 'Leicester',
-    SO: 'Southampton',
-    PL: 'Plymouth',
-    AB: 'Aberdeen',
-    BT: 'Belfast',
-    OX: 'Oxford',
-    CB: 'Cambridge',
-    NR: 'Norwich',
-    EX: 'Exeter',
-    BA: 'Bath',
-    DY: 'Dudley',
-    WS: 'Walsall',
-    WV: 'Wolverhampton',
-    ST: 'Stoke-on-Trent',
-    DE: 'Derby',
-    HU: 'Hull',
-    PR: 'Preston',
-    BL: 'Bolton',
-    WN: 'Wigan',
-    SK: 'Stockport',
-    OL: 'Oldham',
-    WA: 'Warrington',
-    CH: 'Chester',
-    SA: 'Swansea',
-    NP: 'Newport',
-  };
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': USER_AGENT,
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
 
-  if (AREA_MAP[area]) return AREA_MAP[area];
-
-  // Try extracting from address lines
-  if (address) {
-    const addressLower = address.toLowerCase();
-    for (const city of [
-      'Manchester', 'Birmingham', 'Coventry', 'Leeds', 'Glasgow', 
-      'Edinburgh', 'Bristol', 'Liverpool', 'Cardiff', 'Newcastle', 
-      'Sheffield', 'Nottingham', 'Leicester', 'Southampton', 'London'
-    ]) {
-      // Use boundary match to avoid false positives like "North London Road"
-      const regex = new RegExp(`\\b${city.toLowerCase()}\\b`);
-      if (regex.test(addressLower)) return city;
-    }
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Authentication failed (HTTP ${response.status}): ${errText}`);
   }
 
-  return 'United Kingdom';
+  const json = await response.json();
+  const tokenData = json.data || json;
+  if (!tokenData.access_token) {
+    throw new Error('No access_token found in response from Fuel Finder auth endpoint');
+  }
+
+  return tokenData.access_token;
 }
 
-// Fetch single feed with timeout and custom headers
-async function fetchFeed(feed) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+/**
+ * Fetches all batches from a paginated Fuel Finder API endpoint
+ */
+async function fetchAllApiBatches(baseUrl, endpoint, token) {
+  const items = [];
+  let batchNumber = 1;
+  const maxBatches = 60; // Up to 30,000 forecourts
 
-  try {
-    const response = await fetch(feed.url, {
-      signal: controller.signal,
+  console.log(`[API] Fetching batches from ${endpoint}...`);
+
+  while (batchNumber <= maxBatches) {
+    const url = `${baseUrl}${endpoint}?batch-number=${batchNumber}`;
+    const response = await fetch(url, {
       headers: {
-        'User-Agent': 'FuelRadarUK-Bot/1.0 (+https://fuelradar.co.uk/cma-sync)',
-        'Accept': 'application/json, text/plain, */*',
+        Authorization: `Bearer ${token}`,
+        'User-Agent': USER_AGENT,
+        Accept: 'application/json',
       },
     });
 
-    clearTimeout(timeoutId);
+    if (response.status === 404) {
+      // Reached the end of available batches
+      break;
+    }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch ${endpoint} batch ${batchNumber}: HTTP ${response.status}`);
     }
 
-    const text = await response.text();
-    // Some feeds have leading UTF-8 BOM or HTML wrappers
-    const jsonStart = text.indexOf('{');
-    if (jsonStart === -1) {
-      throw new Error('No JSON object found in response body');
+    const batchData = await response.json();
+    const records = Array.isArray(batchData) ? batchData : batchData.data || [];
+
+    if (records.length === 0) {
+      break;
     }
-    const cleanJson = text.slice(jsonStart);
-    const data = JSON.parse(cleanJson);
-    return { success: true, feed, data };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    return { success: false, feed, error: err.message };
+
+    items.push(...records);
+    if (records.length < 500) {
+      break; // Last batch
+    }
+
+    batchNumber++;
   }
+
+  return items;
 }
 
-// Normalize individual station object from CMA schema
-function normalizeStation(raw, defaultBrand) {
-  try {
-    const site_id = raw.site_id || raw.id || `${defaultBrand.toLowerCase()}-${Math.random().toString(36).substring(2, 9)}`;
-    const brand = raw.brand || defaultBrand;
-    const address = raw.address || '';
-    const postcode = (raw.postcode || '').trim().toUpperCase();
-    const district = extractDistrict(postcode);
-    const city = deriveCityFromPostcode(postcode, address);
+/**
+ * Imports from Fuel Finder REST API
+ */
+async function importFromApi(clientId, clientSecret, env = 'production') {
+  const baseUrl =
+    env === 'test'
+      ? 'https://test.fuel-finder.service.gov.uk/api/v1'
+      : 'https://www.fuel-finder.service.gov.uk/api/v1';
 
-    // Location coordinates
-    let lat = null;
-    let lng = null;
-    if (raw.location) {
-      lat = parseFloat(raw.location.latitude ?? raw.location.lat);
-      lng = parseFloat(raw.location.longitude ?? raw.location.lng);
+  const token = await getApiAccessToken(baseUrl, clientId, clientSecret);
+  const forecourts = await fetchAllApiBatches(baseUrl, '/pfs', token);
+  const priceRecords = await fetchAllApiBatches(baseUrl, '/pfs/fuel-prices', token);
+
+  console.log(`[API] Received ${forecourts.length} forecourts and ${priceRecords.length} price records.`);
+
+  // Map prices by node_id
+  const priceMap = new Map();
+  for (const pr of priceRecords) {
+    if (pr.node_id) {
+      priceMap.set(pr.node_id, pr.fuel_prices || []);
+    }
+  }
+
+  const stations = [];
+  const discarded = {
+    missing_id: 0,
+    invalid_coords: 0,
+    no_valid_prices: 0,
+    total_discarded: 0,
+    reasons: [],
+  };
+
+  const now = new Date();
+
+  for (const fc of forecourts) {
+    const nodeId = fc.node_id;
+    const loc = fc.location || {};
+    const rawPricesList = priceMap.get(nodeId) || [];
+
+    const pricesRaw = {};
+    const timestampsRaw = {};
+
+    for (const p of rawPricesList) {
+      const fuelType = (p.fuel_type || '').toUpperCase();
+      let key = null;
+      if (fuelType === 'E10') key = 'E10';
+      else if (fuelType === 'E5') key = 'E5';
+      else if (fuelType === 'B7' || fuelType === 'B7S' || fuelType === 'DIESEL') key = 'B7';
+      else if (fuelType === 'SDV' || fuelType === 'B7P' || fuelType === 'SUPER DIESEL') key = 'SDV';
+
+      if (key) {
+        pricesRaw[key] = p.price;
+        timestampsRaw[key] = p.price_last_updated || p.price_change_effective_timestamp;
+      }
+    }
+
+    const norm = normalizeStationRecord({
+      nodeId,
+      brand: fc.brand_name || fc.trading_name,
+      name: fc.trading_name,
+      address: [loc.address_line_1, loc.address_line_2].filter(Boolean).join(', '),
+      city: loc.city,
+      postcode: loc.postcode,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      pricesRaw,
+      timestampsRaw,
+      updatedAt: now.toISOString(),
+      referenceTime: now,
+    });
+
+    if (norm.success) {
+      stations.push(norm.station);
     } else {
-      lat = parseFloat(raw.latitude ?? raw.lat);
-      lng = parseFloat(raw.longitude ?? raw.lng);
-    }
+      discarded.total_discarded++;
+      if (norm.reason.includes('node_id')) discarded.missing_id++;
+      else if (norm.reason.includes('Coordinates') || norm.reason.includes('bounds')) discarded.invalid_coords++;
+      else if (norm.reason.includes('prices')) discarded.no_valid_prices++;
 
-    // Prices normalization (ensure numbers in pence, e.g. 132.9)
-    const rawPrices = raw.prices || {};
-    const parsePrice = (val) => {
-      if (val === undefined || val === null || val === '') return null;
-      const num = parseFloat(val);
-      if (isNaN(num) || num <= 0) return null;
-      // In case any retailer provides price in pounds (£1.329), convert to pence
-      return num < 10 ? +(num * 100).toFixed(1) : +(num).toFixed(1);
-    };
-
-    const prices = {
-      E10: parsePrice(rawPrices.E10 ?? rawPrices.e10 ?? rawPrices.unleaded),
-      E5: parsePrice(rawPrices.E5 ?? rawPrices.e5 ?? rawPrices['super unleaded']),
-      B7: parsePrice(rawPrices.B7 ?? rawPrices.b7 ?? rawPrices.diesel),
-      SDV: parsePrice(rawPrices.SDV ?? rawPrices.sdv ?? rawPrices['super diesel']),
-    };
-
-    // Need at least one valid price and coordinates to be helpful
-    if (!prices.E10 && !prices.B7 && !prices.E5 && !prices.SDV) {
-      return null;
-    }
-
-    return {
-      site_id: String(site_id),
-      brand: String(brand),
-      name: raw.name || `${brand} ${district || city}`,
-      address: String(address),
-      postcode: postcode,
-      district: district,
-      city: city,
-      location: {
-        latitude: isNaN(lat) ? 51.5074 : lat,
-        longitude: isNaN(lng) ? -0.1278 : lng,
-      },
-      prices: prices,
-      updated_at: raw.last_updated || new Date().toISOString(),
-    };
-  } catch (err) {
-    return null;
-  }
-}
-
-async function run() {
-  console.log('====================================================');
-  console.log('  FuelRadarUK - UK Fuel Price Aggregator (CMA Feed)');
-  console.log('====================================================');
-  console.log(`Starting fetch across ${FUEL_FEEDS.length} official UK retailer feeds...\n`);
-
-  // Load existing dataset first as fallback / baseline
-  let existingStations = [];
-  try {
-    const raw = await fs.readFile(DATA_PATH, 'utf-8');
-    const parsed = JSON.parse(raw);
-    existingStations = parsed.stations || [];
-    console.log(`[Baseline] Loaded ${existingStations.length} existing stations from uk_stations.json`);
-  } catch (e) {
-    console.warn(`[Notice] No existing uk_stations.json found or unreadable. Will create fresh.`);
-  }
-
-  const results = await Promise.allSettled(FUEL_FEEDS.map((feed) => fetchFeed(feed)));
-
-  const stationMap = new Map();
-  // Pre-seed with existing stations so we never lose historical data or manual test coverage
-  for (const s of existingStations) {
-    stationMap.set(s.site_id, s);
-  }
-
-  let totalNewMerged = 0;
-  let successfulFeeds = 0;
-
-  for (const res of results) {
-    if (res.status === 'fulfilled') {
-      const outcome = res.value;
-      if (outcome.success) {
-        successfulFeeds++;
-        const rawStations = outcome.data.stations || outcome.data.items || [];
-        console.log(`[OK] ${outcome.feed.brand}: Fetched ${rawStations.length} stations.`);
-        
-        for (const raw of rawStations) {
-          const norm = normalizeStation(raw, outcome.feed.brand);
-          if (norm && norm.site_id) {
-            stationMap.set(norm.site_id, norm);
-            totalNewMerged++;
-          }
-        }
-      } else {
-        console.warn(`[Skip] ${outcome.feed.brand} endpoint unavailable (${outcome.error}). Retaining cached/sample data.`);
+      if (discarded.reasons.length < 15) {
+        discarded.reasons.push(`[${nodeId || 'no-id'}]: ${norm.reason}`);
       }
     }
   }
 
-  const mergedStations = Array.from(stationMap.values());
+  return { stations, discarded };
+}
 
-  const outputPayload = {
+/**
+ * Imports from official Fuel Finder CSV file (local or remote)
+ */
+async function importFromCsv(csvSource) {
+  console.log(`[CSV] Ingesting from CSV source: ${csvSource}...`);
+  let csvText = '';
+
+  if (csvSource.startsWith('http://') || csvSource.startsWith('https://')) {
+    const res = await fetch(csvSource, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'text/csv, text/plain, */*',
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch remote CSV (HTTP ${res.status} ${res.statusText})`);
+    }
+    csvText = await res.text();
+  } else {
+    const resolvedPath = path.resolve(process.cwd(), csvSource);
+    csvText = await fs.readFile(resolvedPath, 'utf-8');
+  }
+
+  return parseFuelFinderCsv(csvText, new Date());
+}
+
+async function run() {
+  await loadEnv();
+
+  console.log('====================================================');
+  console.log('  FuelRadarUK - Official Fuel Finder Importer');
+  console.log('  The Motor Fuel Price (Open Data) Regulations 2025');
+  console.log('====================================================\n');
+
+  // Check command line args
+  const args = process.argv.slice(2);
+  let csvArg = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--csv' && args[i + 1]) {
+      csvArg = args[i + 1];
+      break;
+    } else if (args[i].startsWith('--csv=')) {
+      csvArg = args[i].split('=')[1];
+      break;
+    }
+  }
+
+  const clientId = process.env.FUEL_FINDER_CLIENT_ID;
+  const clientSecret = process.env.FUEL_FINDER_CLIENT_SECRET;
+  const environment = process.env.FUEL_FINDER_ENVIRONMENT || 'production';
+  const csvEnv = process.env.FUEL_FINDER_CSV_PATH || process.env.FUEL_FINDER_CSV_URL;
+
+  let importResult = null;
+
+  if (csvArg || csvEnv) {
+    const source = csvArg || csvEnv;
+    importResult = await importFromCsv(source);
+  } else if (clientId && clientSecret) {
+    console.log(`[Mode] Connecting to Fuel Finder REST API (${environment} environment)...`);
+    importResult = await importFromApi(clientId, clientSecret, environment);
+  } else {
+    console.warn('\n[Notice] No Fuel Finder credentials or CSV source configured.');
+    console.warn('To import live data, provide either:');
+    console.warn('  1. FUEL_FINDER_CLIENT_ID and FUEL_FINDER_CLIENT_SECRET in .env (or environment)');
+    console.warn('  2. --csv <path-to-csv-or-url> flag');
+    console.warn('  3. FUEL_FINDER_CSV_PATH or FUEL_FINDER_CSV_URL in .env\n');
+    console.warn('See .env.example and README.md for instructions.\n');
+    process.exit(1);
+  }
+
+  const { stations, discarded } = importResult;
+
+  console.log('\n[Summary: Validation & Cleansing]');
+  console.log(`  Valid stations retained: ${stations.length}`);
+  console.log(`  Total records discarded: ${discarded.total_discarded}`);
+  console.log(`    - Missing ID (node_id): ${discarded.missing_id}`);
+  console.log(`    - Invalid / Out-of-UK Coordinates: ${discarded.invalid_coords}`);
+  console.log(`    - No valid unexpired prices (100-250p): ${discarded.no_valid_prices}`);
+
+  if (discarded.reasons.length > 0) {
+    console.log('\n  Sample discard reasons:');
+    discarded.reasons.slice(0, 5).forEach((r) => console.log(`    • ${r}`));
+  }
+
+  // Load existing file to check safety drop guard
+  let prevCount = 0;
+  try {
+    const existingRaw = await fs.readFile(DATA_PATH, 'utf-8');
+    const existingParsed = JSON.parse(existingRaw);
+    prevCount = existingParsed.total_stations || (existingParsed.stations || []).length;
+    console.log(`\n[Safety Guard] Previous station count: ${prevCount}`);
+  } catch (e) {
+    console.log('\n[Safety Guard] No previous dataset found to compare.');
+  }
+
+  // Check drop threshold: abort if station count drops >20%
+  const dropCheck = checkDropThreshold(prevCount, stations.length);
+  if (!dropCheck.allowed) {
+    console.error(`\n[FATAL ERROR - SAFETY GUARD TRIGGERED]`);
+    console.error(`  ${dropCheck.reason}`);
+    console.error(`  Aborting update without modifying ${DATA_PATH}.\n`);
+    process.exit(1);
+  }
+
+  // Calculate national averages from the imported valid stations
+  const nationalAverages = computeNationalAverages(stations);
+  console.log('\n[Computed UK National Averages]');
+  console.log(`  Unleaded (E10):     ${nationalAverages.E10 ?? 'N/A'}p`);
+  console.log(`  Super (E5):        ${nationalAverages.E5 ?? 'N/A'}p`);
+  console.log(`  Diesel (B7):       ${nationalAverages.B7 ?? 'N/A'}p`);
+  console.log(`  Super Diesel (SDV): ${nationalAverages.SDV ?? 'N/A'}p`);
+
+  const payload = {
     last_updated: new Date().toISOString(),
-    source: 'UK CMA Open Data Aggregation (FuelRadarUK)',
-    total_stations: mergedStations.length,
-    feeds_queried: FUEL_FEEDS.length,
-    successful_feeds: successfulFeeds,
-    stations: mergedStations,
+    source: 'Fuel Finder, Open Government Licence v3.0',
+    licence: 'Contains public sector information licensed under the Open Government Licence v3.0',
+    total_stations: stations.length,
+    national_averages: nationalAverages,
+    discarded_summary: {
+      missing_id: discarded.missing_id,
+      invalid_coords: discarded.invalid_coords,
+      no_valid_prices: discarded.no_valid_prices,
+      total_discarded: discarded.total_discarded,
+    },
+    stations: stations,
   };
 
+  // Atomic file write: write to temp file first, then atomically rename
+  console.log(`\n[Disk] Writing ${stations.length} stations atomically to ${DATA_PATH}...`);
   await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(outputPayload, null, 2), 'utf-8');
+  await fs.writeFile(TEMP_DATA_PATH, JSON.stringify(payload, null, 2), 'utf-8');
+  await fs.rename(TEMP_DATA_PATH, DATA_PATH);
 
-  console.log('\n====================================================');
-  console.log(`Successfully merged ${mergedStations.length} stations into data/uk_stations.json!`);
-  console.log(`Timestamp: ${outputPayload.last_updated}`);
+  console.log('====================================================');
+  console.log(`Successfully updated ${DATA_PATH}!`);
+  console.log(`Total active stations: ${stations.length}`);
+  console.log(`Timestamp: ${payload.last_updated}`);
   console.log('====================================================\n');
 }
 
 run().catch((err) => {
-  console.error('[Error] Aggregator encountered an unhandled exception:', err);
+  console.error('[Error] Fuel Finder importer terminated with exception:', err.message);
   process.exit(1);
 });

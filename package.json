@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test tests/fuel-finder.test.mjs",
     "update-fuel": "node scripts/update-uk-fuel.mjs"
   },
   "dependencies": {

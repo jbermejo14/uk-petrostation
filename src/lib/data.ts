@@ -1,19 +1,12 @@
 /**
  * src/lib/data.ts
  * Core data access, statistical computations, and fuel pricing models for FuelRadarUK.
+ * Sourced under Open Government Licence v3.0 from UK Fuel Finder.
  */
 
 import stationsData from '../../data/uk_stations.json';
-import { FuelStation, FuelType, SortOption, CitySummary } from '@/types/fuel';
+import { FuelStation, FuelType, SortOption, CitySummary, NationalAverages } from '@/types/fuel';
 import { calculateDistanceMiles, UK_CITIES, POSTCODE_DISTRICT_COORDS } from './geo';
-
-// Current UK National Average Fuel Benchmarks (CMA / RAC Fuel Watch standard)
-export const UK_NATIONAL_AVERAGES: Record<FuelType, number> = {
-  E10: 139.9, // Unleaded Petrol
-  E5: 151.9,  // Super Unleaded Petrol
-  B7: 144.9,  // Standard Diesel
-  SDV: 155.9, // Premium Diesel
-};
 
 export const FUEL_LABELS: Record<FuelType, { short: string; full: string; code: string }> = {
   E10: { short: 'Unleaded', full: 'Unleaded (E10)', code: 'E10' },
@@ -23,20 +16,60 @@ export const FUEL_LABELS: Record<FuelType, { short: string; full: string; code: 
 };
 
 /**
- * Returns all fuel stations loaded from the normalized CMA dataset
+ * Returns all fuel stations loaded from the normalized Fuel Finder dataset
  */
 export function getAllStations(): FuelStation[] {
   return (stationsData.stations as FuelStation[]) || [];
 }
 
 /**
- * Returns dataset metadata info
+ * Returns dataset metadata info, including official source and licence
  */
 export function getDatasetMeta() {
   return {
     last_updated: stationsData.last_updated,
     total_stations: stationsData.total_stations,
-    source: stationsData.source,
+    source: stationsData.source || 'Fuel Finder, Open Government Licence v3.0',
+    licence: stationsData.licence || 'Contains public sector information licensed under the Open Government Licence v3.0',
+    national_averages: getNationalAverages(),
+  };
+}
+
+/**
+ * Returns national average fuel prices dynamically from file metadata
+ * or computes them dynamically across all loaded stations.
+ */
+export function getNationalAverages(): Record<FuelType, number> {
+  const metaAvgs = (stationsData as any).national_averages as NationalAverages | undefined;
+  if (metaAvgs && metaAvgs.E10 && metaAvgs.B7) {
+    return {
+      E10: metaAvgs.E10 ?? 145.0,
+      E5: metaAvgs.E5 ?? 155.0,
+      B7: metaAvgs.B7 ?? 150.0,
+      SDV: metaAvgs.SDV ?? 160.0,
+    };
+  }
+
+  // Fallback: compute dynamically from stations list
+  const stations = getAllStations();
+  const totals: Record<FuelType, number> = { E10: 0, E5: 0, B7: 0, SDV: 0 };
+  const counts: Record<FuelType, number> = { E10: 0, E5: 0, B7: 0, SDV: 0 };
+
+  for (const s of stations) {
+    for (const ft of ['E10', 'E5', 'B7', 'SDV'] as FuelType[]) {
+      const price = s.prices[ft];
+      if (price !== null && price >= 100 && price <= 250) {
+        totals[ft] += price;
+        counts[ft] += 1;
+      }
+    }
+  }
+
+  return {
+    E10: counts.E10 > 0 ? +(totals.E10 / counts.E10).toFixed(1) : 145.0,
+    E5: counts.E5 > 0 ? +(totals.E5 / counts.E5).toFixed(1) : 155.0,
+    B7: counts.B7 > 0 ? +(totals.B7 / counts.B7).toFixed(1) : 150.0,
+    SDV: counts.SDV > 0 ? +(totals.SDV / counts.SDV).toFixed(1) : 160.0,
   };
 }
 
@@ -48,14 +81,15 @@ export function calculateTankCost(pricePerLitrePence: number, litres = 50): numb
 }
 
 /**
- * Calculates estimated savings on a 50-Litre fill compared to the UK National Average
+ * Calculates estimated savings on a 50-Litre fill compared to the computed National Average
  */
 export function calculateFillSavings(
   pricePerLitrePence: number,
   fuelType: FuelType = 'E10',
   litres = 50
 ): number {
-  const nationalAvg = UK_NATIONAL_AVERAGES[fuelType];
+  const nationalAvgs = getNationalAverages();
+  const nationalAvg = nationalAvgs[fuelType];
   const diff = nationalAvg - pricePerLitrePence;
   if (diff <= 0) return 0;
   return (litres * diff) / 100;
@@ -94,21 +128,24 @@ export function filterStations({
         lat: UK_CITIES[queryLower].lat,
         lng: UK_CITIES[queryLower].lng,
       };
+      // Exact city match
+      list = list.filter((s) => s.city.toLowerCase() === UK_CITIES[queryLower].name.toLowerCase());
     } else if (POSTCODE_DISTRICT_COORDS[cleanQuery]) {
       refCoords = POSTCODE_DISTRICT_COORDS[cleanQuery];
+      list = list.filter((s) => s.district.toUpperCase() === cleanQuery || s.postcode.startsWith(cleanQuery));
     } else {
       // Check prefix of postcode (e.g., M1 from M1 4BT)
       const districtMatch = cleanQuery.split(' ')[0];
       if (POSTCODE_DISTRICT_COORDS[districtMatch]) {
         refCoords = POSTCODE_DISTRICT_COORDS[districtMatch];
       }
-    }
 
-    // Filter stations matching query in name, address, postcode, city, or district
-    list = list.filter((s) => {
-      const matchText = `${s.name} ${s.brand} ${s.address} ${s.postcode} ${s.city} ${s.district}`.toUpperCase();
-      return matchText.includes(cleanQuery);
-    });
+      // Filter stations matching query in official city, district, name, or postcode
+      list = list.filter((s) => {
+        const matchText = `${s.name} ${s.brand} ${s.city} ${s.district} ${s.postcode} ${s.address}`.toUpperCase();
+        return matchText.includes(cleanQuery);
+      });
+    }
   }
 
   // Filter by brand
@@ -178,13 +215,13 @@ export function getAllBrands(): string[] {
 export function getLocalStats(stations: FuelStation[]) {
   const e10Prices = stations
     .map((s) => s.prices.E10)
-    .filter((p): p is number => p !== null && p > 0);
+    .filter((p): p is number => p !== null && p >= 100 && p <= 250);
   const b7Prices = stations
     .map((s) => s.prices.B7)
-    .filter((p): p is number => p !== null && p > 0);
+    .filter((p): p is number => p !== null && p >= 100 && p <= 250);
   const e5Prices = stations
     .map((s) => s.prices.E5)
-    .filter((p): p is number => p !== null && p > 0);
+    .filter((p): p is number => p !== null && p >= 100 && p <= 250);
 
   const minE10 = e10Prices.length ? Math.min(...e10Prices) : null;
   const avgE10 = e10Prices.length
@@ -209,7 +246,7 @@ export function getLocalStats(stations: FuelStation[]) {
 }
 
 /**
- * Aggregates summary statistics for top UK cities for programmatic SEO
+ * Aggregates summary statistics for top UK cities for programmatic SEO using official city field
  */
 export function getCitySummaries(): CitySummary[] {
   const allStations = getAllStations();
@@ -217,9 +254,7 @@ export function getCitySummaries(): CitySummary[] {
 
   for (const [slug, cityInfo] of Object.entries(UK_CITIES)) {
     const cityStations = allStations.filter(
-      (s) =>
-        s.city.toLowerCase() === cityInfo.name.toLowerCase() ||
-        s.address.toLowerCase().includes(cityInfo.name.toLowerCase())
+      (s) => s.city.toLowerCase() === cityInfo.name.toLowerCase()
     );
 
     const stats = getLocalStats(cityStations);

@@ -29,13 +29,13 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Live CMA Data Status Badge */}
+            {/* Live Fuel Finder Status Badge */}
             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#161616] dark:bg-[#161616] light:bg-[#F3F4F6] border border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] text-[11px] text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#4B5563]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>Official CMA Open Data</span>
+              <span>Fuel Finder • OGL v3.0</span>
             </div>
           </div>
 

@@ -1,10 +1,24 @@
 # FuelRadarUK ⛽🇬🇧
 
-**Real-Time UK Petrol & Diesel Price Finder and Forecourt Map**
+**UK Petrol & Diesel Price Finder and Forecourt Map**
 
-FuelRadarUK is a high-performance Next.js 14 web application providing real-time retail petrol (E10, E5) and diesel (B7, SDV) price tracking across the United Kingdom.
+FuelRadarUK is a Next.js 14 web application that compares retail petrol (E10, E5) and diesel (B7, SDV) prices across UK forecourts.
 
-Data is sourced under the **Open Government Licence (OGL) v3.0** via the official UK **Fuel Finder** scheme established under *The Motor Fuel Price (Open Data) Regulations 2025*.
+## Current state of the data (read this first)
+
+**The prices are not live.** `data/uk_stations.json` is a snapshot, taken on 16 November 2026 at 11:27 UTC, of retailer feeds published under the CMA interim fuel price scheme, which closed on 1 May 2026. It holds 854 stations, mainly Asda (782) and Applegreen (65). It is not an official Fuel Finder dataset and it carries no Open Government Licence.
+
+The importer (`npm run update-fuel`) has been migrated to the Government's **Fuel Finder** API but has never been run, because no credentials have been obtained yet.
+
+Provenance is declared in the metadata of `data/uk_stations.json`:
+
+- `source`: label shown next to every station and in the footer.
+- `isLiveSource`: `false` for this snapshot. While it is `false`, every page shows a "Prices are not live" notice.
+- `snapshotDate`: date of the snapshot, used in that notice.
+
+When the importer runs successfully it writes `source: "Fuel Finder"` and `isLiveSource: true`, and the interface changes by itself (the notice disappears).
+
+The averages shown are the **average across the stations in our dataset**, not a UK-wide average. With this snapshot they are biased towards Asda.
 
 ---
 
@@ -12,7 +26,7 @@ Data is sourced under the **Open Government Licence (OGL) v3.0** via the officia
 
 In 2026, the temporary CMA retailer JSON feeds (which required individual scraping of supermarket endpoints) were officially superseded by the UK Government's statutory **Fuel Finder** service. Under UK law, petrol filling stations across England, Scotland, Wales, and Northern Ireland are legally required to report retail pump price changes within 30 minutes.
 
-FuelRadarUK connects directly to Fuel Finder via:
+The importer is written to connect to Fuel Finder via (not yet run against the live service):
 - **REST API:** OAuth 2.0 Client Credentials flow (`/api/v1/pfs` & `/api/v1/pfs/fuel-prices`).
 - **Bulk CSV Feed:** Official twice-daily published CSV extracts.
 
@@ -162,5 +176,9 @@ npm run start
 
 ## 8. Licencing & Attribution
 
-- **Fuel Price & Forecourt Data:** Sourced under the **Open Government Licence v3.0** via the official UK Fuel Finder service (*The Motor Fuel Price (Open Data) Regulations 2025*).
+- **Fuel Price & Forecourt Data:** the current snapshot comes from retailer feeds of the CMA interim fuel price scheme (closed 1 May 2026). Data imported with the importer comes from the official UK Fuel Finder service (*The Motor Fuel Price (Open Data) Regulations 2025*) under the **Open Government Licence v3.0**.
 - **Map Tiles:** © [CARTO](https://carto.com/) © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
+
+## 9. Advertising
+
+Ad blocks (`src/components/AdSlot.tsx`) are only rendered when `NEXT_PUBLIC_ADSENSE_CLIENT` is set (see `.env.example`). Without it, no ad placeholder is shown.

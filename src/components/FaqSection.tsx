@@ -22,12 +22,12 @@ const FAQS: FaqItem[] = [
   {
     question: 'How often are UK fuel prices updated on FuelRadarUK?',
     answer:
-      'FuelRadarUK aggregates prices using direct Open Data feeds established under the Competition and Markets Authority (CMA) Temporary Open Data Scheme. Participating retailers (including Asda, Tesco, Sainsbury’s, Morrisons, Shell, BP, Esso, and Applegreen) publish updated price feeds daily, typically every morning between 06:00 and 11:00 GMT when pump prices are calibrated.',
+      'FuelRadarUK does not show live prices yet. The current prices are a snapshot of retailer feeds published under the Competition and Markets Authority (CMA) interim fuel price scheme, which closed on 1 May 2026, and they cover mainly Asda and Applegreen stations. We plan to switch to live data from the Government’s Fuel Finder scheme; the date of the current snapshot is shown at the top of every page.',
   },
   {
     question: 'How is the 50-Litre Tank Fill Cost and savings calculated?',
     answer:
-      'The 50-Litre Tank Cost is calculated as (50 litres × Price per Litre in Pence) ÷ 100 to give the exact fill price in Pounds Sterling (£). Estimated savings are calculated against the official UK National Average benchmark (published by the CMA and RAC Fuel Watch). For example, if a station charges 131.7p/L compared to a national average of 139.9p/L, saving 8.2p per litre equates to £4.10 saved on a full 50-litre tank.',
+      'The 50-Litre Tank Cost is calculated as (50 litres × Price per Litre in Pence) ÷ 100 to give the exact fill price in Pounds Sterling (£). Estimated savings are calculated against the average price across the stations in our dataset, which is not a UK-wide average. For example, if a station charges 131.7p/L compared to a dataset average of 139.9p/L, saving 8.2p per litre equates to £4.10 saved on a full 50-litre tank.',
   },
   {
     question: 'How does FuelRadarUK help save money with Clean Air Zones and ULEZ?',

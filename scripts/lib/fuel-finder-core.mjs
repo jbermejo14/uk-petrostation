@@ -429,3 +429,34 @@ export function parseCsvRow(text) {
   result.push(cur);
   return result;
 }
+
+/** Etiqueta de fuente que escribe el importador cuando los datos vienen de Fuel Finder. */
+export const LIVE_SOURCE_LABEL = 'Fuel Finder';
+
+/** Licencia de los datos de Fuel Finder (solo aplica a la fuente en vivo). */
+export const LIVE_SOURCE_LICENCE =
+  'Contains public sector information licensed under the Open Government Licence v3.0';
+
+/**
+ * Construye el fichero de datos que escribe el importador.
+ * Solo se llama tras una importación real desde Fuel Finder (API o CSV oficial),
+ * por eso marca la fuente como en vivo y la fecha de instantánea es la de ahora.
+ */
+export function buildLiveDatasetPayload({ stations, discarded, nationalAverages, now }) {
+  return {
+    last_updated: now.toISOString(),
+    source: LIVE_SOURCE_LABEL,
+    isLiveSource: true,
+    snapshotDate: now.toISOString(),
+    licence: LIVE_SOURCE_LICENCE,
+    total_stations: stations.length,
+    national_averages: nationalAverages,
+    discarded_summary: {
+      missing_id: discarded.missing_id,
+      invalid_coords: discarded.invalid_coords,
+      no_valid_prices: discarded.no_valid_prices,
+      total_discarded: discarded.total_discarded,
+    },
+    stations,
+  };
+}

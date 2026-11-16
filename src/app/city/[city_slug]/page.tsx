@@ -29,8 +29,8 @@ export function generateMetadata({ params }: CityPageProps): Metadata {
     };
   }
 
-  const title = `Cheapest Petrol & Diesel in ${cityInfo.name} Today | Live Prices`;
-  const description = `Find the cheapest petrol (E10, E5) and diesel (B7) in ${cityInfo.name}, ${cityInfo.county}. Live prices from Tesco, Asda, Sainsbury's, Shell & BP updated today.`;
+  const title = `Cheapest Petrol & Diesel in ${cityInfo.name}`;
+  const description = `Find the cheapest petrol (E10, E5) and diesel (B7) in ${cityInfo.name}, ${cityInfo.county}. Prices from a snapshot of retailer feeds, mainly Asda and Applegreen.`;
 
   return {
     title,
@@ -77,15 +77,15 @@ export default function CityPage({ params }: CityPageProps) {
         </div>
 
         <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white dark:text-white light:text-[#111111]">
-          Cheapest Petrol & Diesel Prices in <span className="text-[#FF6B00]">{cityInfo.name}</span> Today
+          Cheapest Petrol & Diesel Prices in <span className="text-[#FF6B00]">{cityInfo.name}</span>
         </h1>
 
         <p className="text-xs sm:text-sm text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280] max-w-3xl leading-relaxed">
-          Compare real-time pump prices across {cityStations.length} monitored fuel stations in {cityInfo.name}. Find the lowest rate for Unleaded (E10), Super (E5), and Diesel (B7) under the official UK CMA Open Data scheme.
+          Compare pump prices across {cityStations.length} fuel stations in our dataset in {cityInfo.name}. Find the lowest rate for Unleaded (E10), Super (E5), and Diesel (B7).
         </p>
       </section>
 
-      {/* Live Local Summary Benchmark Box */}
+      {/* Local Summary Benchmark Box */}
       <section>
         <LocalStatsBox locationName={cityInfo.name} stations={cityStations} />
       </section>

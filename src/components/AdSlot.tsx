@@ -7,7 +7,13 @@ interface AdSlotProps {
   className?: string;
 }
 
+/**
+ * Bloque de anuncio. No se renderiza si no existe NEXT_PUBLIC_ADSENSE_CLIENT,
+ * para no mostrar huecos publicitarios sin ID de anuncios.
+ */
 export default function AdSlot({ format = 'banner', className = '' }: AdSlotProps) {
+  if (!process.env.NEXT_PUBLIC_ADSENSE_CLIENT) return null;
+
   return (
     <div
       className={`w-full overflow-hidden rounded-xl border border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] bg-[#121212] dark:bg-[#121212] light:bg-[#F9FAFB] p-3 text-center transition-colors ${className}`}

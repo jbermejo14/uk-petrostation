@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { FuelStation, FuelType, SortOption } from '@/types/fuel';
-import { filterStations, getAllBrands, FUEL_LABELS, calculateTankCost } from '@/lib/data';
+import { filterStations, getAllBrands, getDatasetMeta, FUEL_LABELS, calculateTankCost } from '@/lib/data';
 import StationCard from './StationCard';
 import AffiliateCard from './AffiliateCard';
 import AdSlot from './AdSlot';
@@ -266,12 +266,12 @@ export default function StationList({
           {/* Results Summary Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 px-1">
             <span className="text-xs font-semibold text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280]">
-              Showing <span className="text-white dark:text-white light:text-[#111111] font-bold">{filteredStations.length}</span> verified stations
+              Showing <span className="text-white dark:text-white light:text-[#111111] font-bold">{filteredStations.length}</span> stations
               {cityOrDistrictName ? ` in ${cityOrDistrictName}` : ''} • Sorted by{' '}
               {sortBy === 'cheapest' ? 'Cheapest Price' : 'Distance'}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-[#888888]">Fuel Finder • OGL v3.0</span>
+              <span className="text-[11px] text-[#888888]">{getDatasetMeta().source}</span>
               <span className="text-xs text-[#FF6B00] font-bold">
                 Fuel: {FUEL_LABELS[fuelType].short}
               </span>

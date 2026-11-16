@@ -28,8 +28,8 @@ export function generateMetadata({ params }: PostcodePageProps): Metadata {
   const districtInfo = POSTCODE_DISTRICT_COORDS[districtUpper];
   const areaName = districtInfo ? `${districtUpper} (${districtInfo.city})` : districtUpper;
 
-  const title = `Cheapest Petrol & Diesel in ${areaName} Today | UK FuelRadar`;
-  const description = `Live petrol and diesel prices in postcode area ${districtUpper}. Compare real-time prices for Unleaded (E10) and Diesel (B7) to find the cheapest pump.`;
+  const title = `Cheapest Petrol & Diesel in ${areaName} | UK FuelRadar`;
+  const description = `Petrol and diesel prices in postcode area ${districtUpper} from a snapshot of retailer feeds. Compare prices for Unleaded (E10) and Diesel (B7) to find the cheapest pump.`;
 
   return {
     title,
@@ -74,11 +74,11 @@ export default function PostcodePage({ params }: PostcodePageProps) {
         </div>
 
         <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white dark:text-white light:text-[#111111]">
-          Cheapest Petrol & Diesel Prices in <span className="text-[#FF6B00]">{districtUpper}</span> Today
+          Cheapest Petrol & Diesel Prices in <span className="text-[#FF6B00]">{districtUpper}</span>
         </h1>
 
         <p className="text-xs sm:text-sm text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280] max-w-3xl leading-relaxed">
-          Real-time UK fuel price comparison for postcode district {districtUpper}. Check the lowest rates for Unleaded (E10), Super (E5), and Diesel (B7) within your immediate area.
+          UK fuel price comparison for postcode district {districtUpper}. Check the lowest rates for Unleaded (E10), Super (E5), and Diesel (B7) within your immediate area.
         </p>
       </section>
 

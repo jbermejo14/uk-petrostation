@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { FuelStation, FuelType } from '@/types/fuel';
-import { calculateTankCost, calculateFillSavings, FUEL_LABELS } from '@/lib/data';
+import { calculateTankCost, calculateFillSavings, getDatasetMeta, FUEL_LABELS } from '@/lib/data';
 import { Navigation, MapPin, Zap, Clock, ExternalLink, CheckCircle } from 'lucide-react';
 
 interface StationCardProps {
@@ -112,7 +112,7 @@ export default function StationCard({
             <div className="flex items-center gap-1.5 text-[11px] text-[#888888] dark:text-[#888888] light:text-[#666666] pt-0.5">
               <Clock className="w-3 h-3 text-[#FF6B00]" />
               <span>Price updated: <strong className="text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#444444]">{formattedUpdate}</strong></span>
-              <span className="text-[10px] text-[#666666] dark:text-[#666666] light:text-[#888888]">• Fuel Finder (OGL v3.0)</span>
+              <span className="text-[10px] text-[#666666] dark:text-[#666666] light:text-[#888888]">• {getDatasetMeta().source}</span>
             </div>
           )}
         </div>
@@ -136,7 +136,7 @@ export default function StationCard({
               </div>
               {savings > 0 && (
                 <div className="text-[11px] font-semibold text-emerald-400 light:text-emerald-600">
-                  Save £{savings.toFixed(2)} vs UK avg
+                  Save £{savings.toFixed(2)} vs dataset avg
                 </div>
               )}
             </div>

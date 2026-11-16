@@ -1,7 +1,7 @@
 /**
  * src/lib/data.ts
  * Core data access, statistical computations, and fuel pricing models for FuelRadarUK.
- * Sourced under Open Government Licence v3.0 from UK Fuel Finder.
+ * La procedencia (fuente, si es en vivo, fecha) se lee de los metadatos del JSON.
  */
 
 import stationsData from '../../data/uk_stations.json';
@@ -23,21 +23,52 @@ export function getAllStations(): FuelStation[] {
 }
 
 /**
- * Returns dataset metadata info, including official source and licence
+ * Returns dataset metadata info: source label, whether it is live, snapshot date and optional licence
  */
 export function getDatasetMeta() {
+  const meta = stationsData as {
+    last_updated: string;
+    total_stations: number;
+    source: string;
+    isLiveSource: boolean;
+    snapshotDate: string;
+    licence?: string;
+  };
   return {
-    last_updated: stationsData.last_updated,
-    total_stations: stationsData.total_stations,
-    source: stationsData.source || 'Fuel Finder, Open Government Licence v3.0',
-    licence: stationsData.licence || 'Contains public sector information licensed under the Open Government Licence v3.0',
+    last_updated: meta.last_updated,
+    total_stations: meta.total_stations,
+    source: meta.source,
+    isLiveSource: meta.isLiveSource === true,
+    snapshotDate: meta.snapshotDate,
+    licence: meta.licence,
     national_averages: getNationalAverages(),
   };
 }
 
 /**
- * Returns national average fuel prices dynamically from file metadata
- * or computes them dynamically across all loaded stations.
+ * Formats an ISO date as a British long date, e.g. "16 November 2026"
+ */
+export function formatSnapshotDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/London',
+  });
+}
+
+/**
+ * Returns the "prices are not live" notice, or null when the dataset comes from a live source
+ */
+export function getSnapshotNotice(): string | null {
+  const meta = getDatasetMeta();
+  if (meta.isLiveSource) return null;
+  return `Prices are not live. This is a snapshot from ${formatSnapshotDate(meta.snapshotDate)} covering mainly Asda and Applegreen. Live data from the Government's Fuel Finder scheme is coming soon.`;
+}
+
+/**
+ * Returns the average price across the stations in our dataset (not a UK-wide average),
+ * read from file metadata or computed across all loaded stations.
  */
 export function getNationalAverages(): Record<FuelType, number> {
   const metaAvgs = (stationsData as any).national_averages as NationalAverages | undefined;
@@ -81,7 +112,7 @@ export function calculateTankCost(pricePerLitrePence: number, litres = 50): numb
 }
 
 /**
- * Calculates estimated savings on a 50-Litre fill compared to the computed National Average
+ * Calculates estimated savings on a 50-Litre fill compared to the average across stations in our dataset
  */
 export function calculateFillSavings(
   pricePerLitrePence: number,

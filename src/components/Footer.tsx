@@ -1,8 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { Fuel, ShieldCheck, ExternalLink } from 'lucide-react';
+import { getDatasetMeta, formatSnapshotDate } from '@/lib/data';
 
 export default function Footer() {
+  const meta = getDatasetMeta();
   return (
     <footer className="border-t border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] bg-[#0A0A0A] dark:bg-[#0A0A0A] light:bg-[#F8F9FA] text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280] text-xs py-12 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
@@ -18,11 +20,11 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-xs leading-relaxed">
-              FuelRadarUK aggregates real-time fuel prices across the UK under the official Fuel Finder open data scheme (The Motor Fuel Price (Open Data) Regulations 2025). Contains public sector information licensed under the Open Government Licence v3.0.
+              FuelRadarUK compares fuel prices across the stations in its dataset. Data source: {meta.source} (data from {formatSnapshotDate(meta.snapshotDate)}).
             </p>
             <div className="flex items-center gap-1.5 text-[11px] text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280]">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Fuel Finder • Open Government Licence v3.0</span>
+              <span>{meta.licence ?? meta.source}</span>
             </div>
           </div>
 
@@ -117,7 +119,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-          <p>© {new Date().getFullYear()} FuelRadarUK. All rights reserved. Data source: Fuel Finder, licensed under the Open Government Licence v3.0.</p>
+          <p>© {new Date().getFullYear()} FuelRadarUK. All rights reserved. Data source: {meta.source}.</p>
           <div className="flex items-center gap-4">
             <span className="hover:text-white dark:hover:text-white light:hover:text-[#111111]">Privacy Policy</span>
             <span>•</span>

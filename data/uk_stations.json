@@ -1,7 +1,8 @@
 {
   "last_updated": "2026-11-16T12:06:19.675Z",
-  "source": "Fuel Finder, Open Government Licence v3.0",
-  "licence": "Contains public sector information licensed under the Open Government Licence v3.0",
+  "source": "Snapshot of retailer feeds published under the CMA interim fuel price scheme (closed 1 May 2026)",
+  "isLiveSource": false,
+  "snapshotDate": "2026-11-16T11:27:14.254Z",
   "total_stations": 854,
   "national_averages": {
     "E10": 163.2,

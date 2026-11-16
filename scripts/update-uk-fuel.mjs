@@ -16,6 +16,7 @@ import {
   parseFuelFinderCsv,
   computeNationalAverages,
   checkDropThreshold,
+  buildLiveDatasetPayload,
 } from './lib/fuel-finder-core.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -329,20 +330,12 @@ async function run() {
   console.log(`  Diesel (B7):       ${nationalAverages.B7 ?? 'N/A'}p`);
   console.log(`  Super Diesel (SDV): ${nationalAverages.SDV ?? 'N/A'}p`);
 
-  const payload = {
-    last_updated: new Date().toISOString(),
-    source: 'Fuel Finder, Open Government Licence v3.0',
-    licence: 'Contains public sector information licensed under the Open Government Licence v3.0',
-    total_stations: stations.length,
-    national_averages: nationalAverages,
-    discarded_summary: {
-      missing_id: discarded.missing_id,
-      invalid_coords: discarded.invalid_coords,
-      no_valid_prices: discarded.no_valid_prices,
-      total_discarded: discarded.total_discarded,
-    },
-    stations: stations,
-  };
+  const payload = buildLiveDatasetPayload({
+    stations,
+    discarded,
+    nationalAverages,
+    now: new Date(),
+  });
 
   // Atomic file write: write to temp file first, then atomically rename
   console.log(`\n[Disk] Writing ${stations.length} stations atomically to ${DATA_PATH}...`);

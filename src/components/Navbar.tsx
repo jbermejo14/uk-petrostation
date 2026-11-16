@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from './ThemeProvider';
 import { Sun, Moon, Fuel, MapPin, Menu, X, ShieldCheck } from 'lucide-react';
+import { getDatasetMeta } from '@/lib/data';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isLiveSource } = getDatasetMeta();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] bg-[#0A0A0A]/95 dark:bg-[#0A0A0A]/95 light:bg-[#FFFFFF]/95 backdrop-blur-md transition-colors duration-200">
@@ -24,18 +26,22 @@ export default function Navbar() {
                   FuelRadar<span className="text-[#FF6B00]">UK</span>
                 </span>
                 <span className="text-[10px] font-medium text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280] -mt-1 hidden sm:block">
-                  Real-Time UK Petrol & Diesel Prices
+                  UK Petrol & Diesel Prices
                 </span>
               </div>
             </Link>
 
-            {/* Live Fuel Finder Status Badge */}
+            {/* Estado de la fuente: punto animado solo si los datos son en vivo */}
             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#161616] dark:bg-[#161616] light:bg-[#F3F4F6] border border-[#2A2A2A] dark:border-[#2A2A2A] light:border-[#E5E7EB] text-[11px] text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#4B5563]">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                {isLiveSource && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${isLiveSource ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                ></span>
               </span>
-              <span>Fuel Finder • OGL v3.0</span>
+              <span>{isLiveSource ? 'Live data' : 'Snapshot data'}</span>
             </div>
           </div>
 

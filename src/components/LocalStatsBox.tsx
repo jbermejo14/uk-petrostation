@@ -1,6 +1,6 @@
 import React from 'react';
 import { FuelStation } from '@/types/fuel';
-import { getLocalStats, calculateTankCost } from '@/lib/data';
+import { getLocalStats, calculateTankCost, getDatasetMeta } from '@/lib/data';
 import { Fuel, TrendingDown, Gauge, MapPin } from 'lucide-react';
 
 interface LocalStatsBoxProps {
@@ -10,6 +10,7 @@ interface LocalStatsBoxProps {
 
 export default function LocalStatsBox({ locationName, stations }: LocalStatsBoxProps) {
   const stats = getLocalStats(stations);
+  const { isLiveSource } = getDatasetMeta();
 
   const tankCostE10 = stats.cheapestE10 ? calculateTankCost(stats.cheapestE10, 50).toFixed(2) : null;
   const tankCostB7 = stats.cheapestB7 ? calculateTankCost(stats.cheapestB7, 50).toFixed(2) : null;
@@ -23,17 +24,17 @@ export default function LocalStatsBox({ locationName, stations }: LocalStatsBoxP
           </div>
           <div>
             <h3 className="text-sm font-bold text-white dark:text-white light:text-[#111111]">
-              Live Fuel Benchmark • {locationName}
+              Fuel Benchmark • {locationName}
             </h3>
             <p className="text-[11px] text-[#A3A3A3] dark:text-[#A3A3A3] light:text-[#6B7280]">
-              Real-time prices across {stats.count} monitored stations
+              Prices across {stats.count} stations in our dataset
             </p>
           </div>
         </div>
 
         <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 light:text-emerald-600 text-xs font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Updated Today
+          <span className={`w-1.5 h-1.5 rounded-full ${isLiveSource ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          {isLiveSource ? 'Live data' : 'Snapshot data'}
         </span>
       </div>
 

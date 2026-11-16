@@ -3,15 +3,16 @@ import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import DataNotice from '@/components/DataNotice';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://fuelradar.co.uk'),
   title: {
-    default: 'FuelRadarUK | Real-Time UK Petrol & Diesel Prices & Station Map',
+    default: 'FuelRadarUK | UK Petrol & Diesel Prices & Station Map',
     template: '%s | FuelRadarUK',
   },
   description:
-    'Find the cheapest petrol (E10, E5) and diesel (B7, SDV) near you in the UK. Real-time fuel price tracker powered by official UK CMA Open Data feeds.',
+    'Find the cheapest petrol (E10, E5) and diesel (B7, SDV) near you in the UK. Fuel price comparison with an interactive station map.',
   keywords: [
     'petrol prices near me',
     'diesel prices near me',
@@ -21,7 +22,6 @@ export const metadata: Metadata = {
     'e10 petrol price',
     'asda petrol price',
     'tesco fuel prices',
-    'cma fuel data uk',
   ],
   authors: [{ name: 'FuelRadarUK' }],
   creator: 'FuelRadarUK',
@@ -35,13 +35,13 @@ export const metadata: Metadata = {
     locale: 'en_GB',
     url: 'https://fuelradar.co.uk',
     siteName: 'FuelRadarUK',
-    title: 'FuelRadarUK | Real-Time UK Petrol & Diesel Prices & Station Map',
+    title: 'FuelRadarUK | UK Petrol & Diesel Prices & Station Map',
     description:
-      'Save money on every fill. Real-time UK fuel price finder with interactive map, 50-litre tank cost calculator, and CMA Open Data updates.',
+      'Save money on every fill. UK fuel price finder with interactive map and 50-litre tank cost calculator.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FuelRadarUK | Real-Time UK Petrol & Diesel Prices',
+    title: 'FuelRadarUK | UK Petrol & Diesel Prices',
     description: 'Find the cheapest petrol & diesel stations across the UK.',
   },
 };
@@ -67,6 +67,7 @@ export default function RootLayout({
         <ThemeProvider>
           <Navbar />
           <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <DataNotice />
             {children}
           </main>
           <Footer />

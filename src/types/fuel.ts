@@ -52,8 +52,10 @@ export interface DiscardedStats {
 
 export interface DatasetPayload {
   last_updated: string;
-  source: string; // e.g. "Fuel Finder, Open Government Licence v3.0"
-  licence: string;
+  source: string; // Etiqueta de la fuente, p. ej. "Fuel Finder"
+  isLiveSource: boolean; // false cuando los datos son una instantánea y no datos en vivo
+  snapshotDate: string; // ISO 8601: fecha de la instantánea (o de la importación en vivo)
+  licence?: string; // Solo presente cuando la fuente tiene una licencia que atribuir
   total_stations: number;
   national_averages: NationalAverages;
   discarded_stats?: DiscardedStats;

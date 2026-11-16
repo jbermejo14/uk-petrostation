@@ -23,7 +23,9 @@ import {
   checkDropThreshold,
   normalizeStationRecord,
   parseFuelFinderCsv,
+  buildLiveDatasetPayload,
 } from '../scripts/lib/fuel-finder-core.mjs';
+import { readFileSync } from 'node:fs';
 
 describe('1. Price Validation (100 - 250 pence/litre)', () => {
   const refTime = new Date('2026-11-16T12:00:00Z');
@@ -294,5 +296,42 @@ describe('7. Official CSV Parsing with Fixture Data', () => {
     assert.equal(discarded.missing_id, 1);
     assert.equal(discarded.invalid_coords, 1);
     assert.equal(discarded.no_valid_prices, 1);
+  });
+});
+
+describe('Dataset provenance metadata', () => {
+  const discardedFixture = {
+    missing_id: 1,
+    invalid_coords: 2,
+    no_valid_prices: 3,
+    total_discarded: 6,
+  };
+
+  test('importer payload declares Fuel Finder as a live source', () => {
+    const now = new Date('2026-12-01T08:30:00Z');
+    const payload = buildLiveDatasetPayload({
+      stations: [{ site_id: 'a' }],
+      discarded: discardedFixture,
+      nationalAverages: { E10: 140, E5: null, B7: 150, SDV: null },
+      now,
+    });
+
+    assert.equal(payload.source, 'Fuel Finder');
+    assert.equal(payload.isLiveSource, true);
+    assert.equal(payload.snapshotDate, '2026-12-01T08:30:00.000Z');
+    assert.equal(payload.total_stations, 1);
+    assert.equal(payload.discarded_summary.total_discarded, 6);
+  });
+
+  test('committed dataset declares itself as a non-live CMA snapshot', () => {
+    const dataset = JSON.parse(
+      readFileSync(new URL('../data/uk_stations.json', import.meta.url), 'utf-8')
+    );
+
+    assert.equal(dataset.isLiveSource, false);
+    assert.match(dataset.source, /CMA interim fuel price scheme/);
+    assert.ok(!('licence' in dataset), 'la instantánea CMA no debe declarar licencia OGL');
+    assert.ok(!Number.isNaN(Date.parse(dataset.snapshotDate)));
+    assert.equal(dataset.total_stations, dataset.stations.length);
   });
 });
